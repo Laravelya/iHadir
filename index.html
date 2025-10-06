@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Absensi Online Guru & Tendik - SD ISLAM IQRA PETOBO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/heroicons/2.0.13/24/outline/heroicons.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #09f; animation: spin 1s ease infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .message-card { transition: opacity 0.5s ease-in-out; }
+    #camera-modal { z-index: 50; }
+    #camera-preview { transform: scaleX(-1); } /* Efek cermin */
+  </style>
+  <script>
+    // Handle theme switching based on localStorage or system preference
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  </script>
+</head>
+<body class="antialiased text-gray-800 dark:text-gray-300 min-h-screen bg-slate-50 dark:bg-gray-900">
+
+  <div id="camera-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md text-center p-4 sm:p-6 space-y-4">
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Verifikasi Selfie</h3>
+      <div class="relative w-full aspect-square bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden flex items-center justify-center">
+        <video id="camera-preview" class="w-full h-full object-cover" autoplay playsinline></video>
+        <div id="camera-loading" class="absolute text-gray-600 dark:text-gray-400">Memulai kamera...</div>
+      </div>
+      <canvas id="camera-canvas" class="hidden"></canvas>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <button id="capture-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+          <span>Ambil Foto</span>
+        </button>
+        <button onclick="closeCameraModal()" class="w-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">
+          Batal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto p-4 md:p-6 max-w-lg relative">
+    <button id="theme-toggle" type="button" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 rounded-lg p-2.5">
+      <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+      <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 016.465 3.636l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zM5 11a1 1 0 100-2H4a1 1 0 100 2h1zM8 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM3.293 16.707a1 1 0 011.414 0l.707-.707a1 1 0 01-1.414-1.414l-.707.707a1 1 0 010 1.414z"></path></svg>
+      <span class="sr-only">Toggle theme</span>
+    </button>
+    <header class="text-center mb-6">
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-full shadow-md w-24 h-24 mx-auto flex items-center justify-center mb-4 border border-gray-200 dark:border-gray-700">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-blue-600">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Absensi Guru & Tendik</h1>
+      <p id="current-time" class="text-gray-600 dark:text-gray-400 mt-2 text-sm md:text-base">Memuat waktu...</p>
+    </header>
+
+    <main id="app-container">
+      <div id="login-view" class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-6">
+        <h2 class="text-2xl font-bold text-center text-gray-800 dark:text-gray-200 mb-4">Selamat Datang</h2>
+        
+        <div>
+          <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            </div>
+            <input type="text" id="username" class="block w-full pl-10 pr-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white">
+          </div>
+        </div>
+
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+          <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+            </div>
+            <input type="password" id="password" class="block w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white">
+            <button type="button" id="toggle-password-btn" class="absolute inset-y-0 right-0 flex items-center pr-3">
+              <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <svg id="eye-slash-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400 hidden">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L6.228 6.228" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <button id="login-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+          Login
+        </button>
+        <div id="login-status" class="text-center text-sm font-medium text-red-600 dark:text-red-400 min-h-[20px]"></div>
+      </div>
+
+      <div id="main-content" class="hidden space-y-4 md:space-y-6">
+        <div id="user-card" class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Profil Pengguna</h2>
+          <div class="space-y-3 text-sm">
+            <div class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg><span class="font-medium text-gray-500 dark:text-gray-400 w-20">Nama</span><span id="user-name" class="text-gray-900 dark:text-gray-100 font-semibold">...</span></div>
+            <div class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" /></svg><span class="font-medium text-gray-500 dark:text-gray-400 w-20">NUPTK</span><span id="user-nuptk" class="text-gray-900 dark:text-gray-100">...</span></div>
+            <div class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.5 3a2.5 2.5 0 00-2.121 4.121l-.628.627a.5.5 0 00.707.707l.628-.627A2.5 2.5 0 105.5 3zm9 0a2.5 2.5 0 00-2.121 4.121l-.628.627a.5.5 0 00.707.707l.628-.627A2.5 2.5 0 1014.5 3zM4 10a.5.5 0 00-.707.707l.627.628A2.5 2.5 0 107 10.5H4z" clip-rule="evenodd" /><path d="M10 3a.5.5 0 00-.707.707l.627.628A2.5 2.5 0 1013 5.5h-3a.5.5 0 000 1h3a2.5 2.5 0 10-2.121-4.121L10.707 3.707A.5.5 0 0010 3zM7 13.5a.5.5 0 000 1h3a2.5 2.5 0 102.121-4.121l.627-.628a.5.5 0 00-.707-.707l-.627.628A2.5 2.5 0 107 13.5z" /></svg><span class="font-medium text-gray-500 dark:text-gray-400 w-20">Gender</span><span id="user-gender" class="text-gray-900 dark:text-gray-100">...</span></div>
+            <div class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h4a1 1 0 100-2H7z" clip-rule="evenodd" />
+              </svg>
+              <span class="font-medium text-gray-500 dark:text-gray-400 w-20">Jabatan</span>
+              <span id="user-jabatan" class="text-gray-900 dark:text-gray-100">...</span>
+            </div>
+          </div>
+          <button id="logout-button" class="w-full mt-6 bg-red-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition flex items-center justify-center space-x-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+            <span>Logout</span>
+          </button>
+        </div>
+
+        <div id="status-card" class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+          <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Status Absensi Hari Ini</h2>
+          <div class="space-y-3 text-base">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l.293.293a1 1 0 001.414-1.414l-3-3z" clip-rule="evenodd" /></svg>
+                <span class="font-medium text-gray-700 dark:text-gray-300">Absen Masuk</span>
+              </div>
+              <div id="status-masuk-container">
+                 <span id="status-masuk" class="font-bold text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 px-3 py-1.5 rounded-full text-sm">Belum Absen</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-orange-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.707-4.707a1 1 0 001.414 1.414l3-3a1 1 0 00-1.414-1.414L11 10.586V7a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3z" clip-rule="evenodd" /></svg>
+                <span class="font-medium text-gray-700 dark:text-gray-300">Absen Keluar</span>
+              </div>
+              <div id="status-keluar-container">
+                <span id="status-keluar" class="font-bold text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 px-3 py-1.5 rounded-full text-sm">Belum Absen</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="action-card" class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+          <h2 class="text-xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">Silakan Lakukan Absensi</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button id="btn-masuk" onclick="handleAttendance('Masuk')" class="w-full bg-blue-600 text-white font-bold py-3.5 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition flex items-center justify-center space-x-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg><span>Absen Masuk</span></button>
+            <button id="btn-keluar" onclick="handleAttendance('Keluar')" class="w-full bg-orange-500 text-white font-bold py-3.5 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-400 transition flex items-center justify-center space-x-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M9 9l3 3m0 0l3-3m-3 3v6" /></svg><span>Absen Keluar</span></button>
+          </div>
+        </div>
+        
+        <div id="message-area" class="opacity-0 message-card mt-6"></div>
+      </div>
+    </main>
+    
+    <footer class="text-center mt-8 text-xs text-gray-500 dark:text-gray-400">
+      <p>&copy; 2025 - Sistem Absensi Digital. Hak Cipta Dilindungi.</p>
+    </footer>
+  </div>
+
+<script>
+  // Variabel global untuk menyimpan data pengguna dan status kamera
+  let currentUser = null;
+  let cameraStream = null;
+  let currentAttendanceStatus = '';
+
+  // Inisialisasi waktu dan listener saat halaman dimuat
+  document.addEventListener("DOMContentLoaded", function() {
+      updateTime();
+      setInterval(updateTime, 1000);
+
+      checkLoginSession();
+      
+      // Setup Theme Toggle
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+      const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+      const htmlEl = document.documentElement;
+
+      // Function to apply theme and update icon
+      function applyTheme(theme) {
+          if (theme === 'dark') {
+              htmlEl.classList.add('dark');
+              themeToggleLightIcon.classList.remove('hidden');
+              themeToggleDarkIcon.classList.add('hidden');
+              localStorage.setItem('theme', 'dark');
+          } else {
+              htmlEl.classList.remove('dark');
+              themeToggleDarkIcon.classList.remove('hidden');
+              themeToggleLightIcon.classList.add('hidden');
+              localStorage.setItem('theme', 'light');
+          }
+      }
+
+      // Initial theme check and icon setup
+      applyTheme(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+      // Event listener for the toggle button
+      themeToggleBtn.addEventListener('click', function() {
+          applyTheme(htmlEl.classList.contains('dark') ? 'light' : 'dark');
+      });
+
+
+      document.getElementById('login-button').addEventListener('click', handleLogin);
+      document.getElementById('logout-button').addEventListener('click', handleLogout);
+      document.getElementById('toggle-password-btn').addEventListener('click', togglePasswordVisibility);
+      document.getElementById('password').addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') handleLogin();
+      });
+      document.getElementById('username').addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') handleLogin();
+      });
+  });
+
+  function checkLoginSession() {
+      const storedUser = sessionStorage.getItem('loggedInUser');
+      if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+          document.getElementById('login-view').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          populateUI(currentUser);
+      }
+  }
+
+  function updateTime() {
+      const timeElement = document.getElementById('current-time');
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Makassar' };
+      timeElement.textContent = now.toLocaleDateString('id-ID', options) + ' WITA';
+  }
+
+  function togglePasswordVisibility() {
+      const passwordInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eye-icon');
+      const eyeSlashIcon = document.getElementById('eye-slash-icon');
+
+      if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          eyeIcon.classList.add('hidden');
+          eyeSlashIcon.classList.remove('hidden');
+      } else {
+          passwordInput.type = 'password';
+          eyeIcon.classList.remove('hidden');
+          eyeSlashIcon.classList.add('hidden');
+      }
+  }
+
+  function handleLogout() {
+      if (currentUser && currentUser.username) {
+          google.script.run
+              .withSuccessHandler(response => console.log('Server logout response:', response.message))
+              .withFailureHandler(error => console.error('Server logout error:', error))
+              .userLogout(currentUser.username);
+      }
+      currentUser = null;
+      sessionStorage.removeItem('loggedInUser');
+      
+      document.getElementById('main-content').classList.add('hidden');
+      document.getElementById('login-view').classList.remove('hidden');
+
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('login-status').textContent = '';
+      document.getElementById('message-area').innerHTML = '';
+      document.getElementById('message-area').style.opacity = '0';
+  }
+  
+  function handleLogin() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const statusDiv = document.getElementById('login-status');
+      const loginButton = document.getElementById('login-button');
+
+      if (!username || !password) {
+          statusDiv.textContent = 'Username dan password wajib diisi.';
+          return;
+      }
+
+      statusDiv.textContent = '';
+      loginButton.disabled = true;
+      loginButton.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>`;
+
+      google.script.run
+          .withSuccessHandler(onLoginSuccess)
+          .withFailureHandler(showGenericError)
+          .userLogin(username, password);
+  }
+  
+  function onLoginSuccess(response) {
+      const loginButton = document.getElementById('login-button');
+      loginButton.disabled = false;
+      loginButton.innerHTML = 'Login';
+      
+      if (response.success) {
+          currentUser = response.userData;
+          sessionStorage.setItem('loggedInUser', JSON.stringify(currentUser));
+
+          document.getElementById('login-view').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          populateUI(currentUser);
+      } else {
+          document.getElementById('login-status').textContent = response.message;
+      }
+  }
+
+  function populateUI(userData) {
+      document.getElementById('user-name').textContent = userData.name;
+      document.getElementById('user-nuptk').textContent = userData.nuptk || '-';
+      document.getElementById('user-gender').textContent = userData.gender || '-';
+      document.getElementById('user-jabatan').textContent = userData.jabatan || '-';
+
+      // Reset UI elements to default state
+      document.getElementById('btn-masuk').disabled = false;
+      document.getElementById('btn-keluar').disabled = false;
+      document.getElementById('status-masuk').className = "font-bold text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 px-3 py-1.5 rounded-full text-sm";
+      document.getElementById('status-masuk').textContent = 'Belum Absen';
+      document.getElementById('status-keluar').className = "font-bold text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 px-3 py-1.5 rounded-full text-sm";
+      document.getElementById('status-keluar').textContent = 'Belum Absen';
+      document.getElementById('btn-masuk').querySelector('span').textContent = 'Absen Masuk';
+      document.getElementById('btn-keluar').querySelector('span').textContent = 'Absen Keluar';
+      
+      if (userData.lastCheckIn) {
+          const statusEl = document.getElementById('status-masuk');
+          statusEl.className = "font-bold text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-900 px-3 py-1.5 rounded-full text-sm";
+          statusEl.textContent = userData.lastCheckIn + ' WITA';
+          document.getElementById('btn-masuk').disabled = true;
+          document.getElementById('btn-masuk').querySelector('span').textContent = 'Sudah Absen Masuk';
+      }
+      if (userData.lastCheckOut) {
+          const statusEl = document.getElementById('status-keluar');
+          statusEl.className = "font-bold text-orange-800 bg-orange-100 dark:text-orange-300 dark:bg-orange-900 px-3 py-1.5 rounded-full text-sm";
+          statusEl.textContent = userData.lastCheckOut + ' WITA';
+          document.getElementById('btn-keluar').disabled = true;
+          document.getElementById('btn-keluar').querySelector('span').textContent = 'Sudah Absen Keluar';
+      }
+  }
+
+  async function openCameraModal(status) {
+      currentAttendanceStatus = status;
+      const modal = document.getElementById('camera-modal');
+      const video = document.getElementById('camera-preview');
+      const loading = document.getElementById('camera-loading');
+      
+      modal.classList.remove('hidden');
+      loading.classList.remove('hidden');
+
+      try {
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                  video: { facingMode: 'user' },
+                  audio: false 
+              });
+              video.srcObject = cameraStream;
+              video.onloadedmetadata = () => loading.classList.add('hidden');
+          } else {
+              throw new Error("Browser tidak mendukung akses kamera.");
+          }
+      } catch (err) {
+          showMessage('error', `Gagal mengakses kamera: ${err.message}`);
+          closeCameraModal();
+      }
+  }
+
+  function closeCameraModal() {
+      if (cameraStream) {
+          cameraStream.getTracks().forEach(track => track.stop());
+      }
+      document.getElementById('camera-modal').classList.add('hidden');
+      disableButtons(false);
+  }
+
+  document.getElementById('capture-btn').addEventListener('click', function() {
+      const video = document.getElementById('camera-preview');
+      const canvas = document.getElementById('camera-canvas');
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const selfieData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      closeCameraModal();
+      proceedWithAttendance(currentAttendanceStatus, selfieData);
+  });
+
+  function handleAttendance(status) {
+      openCameraModal(status);
+  }
+  
+  function proceedWithAttendance(status, selfieData) {
+      showMessage('loading', `Mendapatkan lokasi Anda, mohon tunggu...`);
+      disableButtons(true);
+
+      navigator.geolocation.getCurrentPosition(
+          (position) => {
+              showMessage('loading', 'Lokasi didapatkan. Mengirim data absensi...');
+              const { latitude, longitude } = position.coords;
+              google.script.run
+                  .withSuccessHandler(showResult)
+                  .withFailureHandler(showGenericError)
+                  .recordAttendance(currentUser.username, status, latitude, longitude, selfieData);
+          },
+          (error) => {
+              let errorMessage = "Gagal mendapatkan lokasi. Pastikan izin lokasi telah diaktifkan.";
+              showMessage('error', errorMessage);
+              disableButtons(false);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+  }
+
+  function showResult(response) {
+    if (response.success) {
+      showMessage('success', response.message);
+      google.script.run
+        .withSuccessHandler(onRefreshSuccess)
+        .withFailureHandler(showGenericError)
+        .getUserData(currentUser.username);
+    } else {
+      showMessage('error', response.message);
+      disableButtons(false);
+    }
+  }
+  
+  function onRefreshSuccess(response) {
+      disableButtons(false);
+      if (response.success) {
+          currentUser = response.userData;
+          sessionStorage.setItem('loggedInUser', JSON.stringify(currentUser));
+          populateUI(currentUser);
+      } else {
+          handleLogout();
+      }
+  }
+  
+  function showGenericError(error) {
+      const msg = `Terjadi kesalahan pada sistem: ${error.message}`;
+      showMessage('error', msg);
+      document.getElementById('login-status').textContent = msg;
+      const loginButton = document.getElementById('login-button');
+      loginButton.disabled = false;
+      loginButton.innerHTML = 'Login';
+      disableButtons(false);
+  }
+  
+  function showMessage(type, text) {
+      const messageArea = document.getElementById('message-area');
+      let bgColor, textColor, borderColor, icon, darkBgColor, darkTextColor, darkBorderColor;
+      switch(type) {
+          case 'success':
+              bgColor = 'bg-green-100'; textColor = 'text-green-800'; borderColor = 'border-green-500';
+              darkBgColor = 'dark:bg-green-900/60'; darkTextColor = 'dark:text-green-200'; darkBorderColor = 'dark:border-green-600';
+              icon = `<svg class="fill-current h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M0 11l2-2 5 5L17 3l3 3-10 10L0 11z"/></svg>`;
+              break;
+          case 'error':
+              bgColor = 'bg-red-100'; textColor = 'text-red-800'; borderColor = 'border-red-500';
+              darkBgColor = 'dark:bg-red-900/60'; darkTextColor = 'dark:text-red-200'; darkBorderColor = 'dark:border-red-600';
+              icon = `<svg class="fill-current h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"/></svg>`;
+              break;
+          case 'loading':
+              bgColor = 'bg-blue-100'; textColor = 'text-blue-800'; borderColor = 'border-blue-500';
+              darkBgColor = 'dark:bg-blue-900/60'; darkTextColor = 'dark:text-blue-200'; darkBorderColor = 'dark:border-blue-600';
+              icon = `<div class="spinner-sm border-blue-500 mr-3"></div>`;
+              if (!document.querySelector('style#spinner-style')) {
+                  document.head.insertAdjacentHTML('beforeend', '<style id="spinner-style">.spinner-sm{border:2px solid rgba(0,0,0,.1);width:20px;height:20px;border-radius:50%;border-left-color:currentColor;animation:spin .5s ease infinite;}</style>');
+              }
+              break;
+      }
+      messageArea.innerHTML = `<div class="${bgColor} ${darkBgColor} border-l-4 ${borderColor} ${darkBorderColor} ${textColor} ${darkTextColor} p-4 rounded-lg shadow" role="alert"><div class="flex items-center">${icon}<p>${text}</p></div></div>`;
+      messageArea.style.opacity = '1';
+
+      if (type !== 'loading') {
+          setTimeout(() => { messageArea.style.opacity = '0'; }, 6000);
+      }
+  }
+
+  function disableButtons(isDisabled) {
+    // Buttons are now disabled/enabled by populateUI based on attendance status.
+    // This function can still be used to disable all buttons during a pending action.
+    document.querySelectorAll('#action-card button').forEach(button => {
+        if(isDisabled) {
+           button.disabled = true;
+        } else {
+           // Re-enabling is handled by populateUI to avoid conflicts.
+        }
+    });
+  }
+</script>
+</body>
+</html>
